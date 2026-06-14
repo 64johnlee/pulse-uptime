@@ -1,7 +1,10 @@
+import { randomBytes, scrypt as scryptCb } from "node:crypto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { authRepo, type PulseDb } from "@pulse/db";
 import { createTestDb, type TestDb } from "@pulse/db/testing";
+import { SCRYPT_PARAMS } from "./config";
 import { AuthError } from "./errors";
+import { verifyPassword } from "./password";
 import {
   authenticate,
   resolveSession,
@@ -9,6 +12,35 @@ import {
   signUp,
 } from "./service";
 import { hashSessionToken } from "./tokens";
+
+/**
+ * Produce a scrypt hash with below-policy parameters (the old N=2^15), in the
+ * same self-describing format the app stores. Used to simulate a legacy row so
+ * we can assert rehash-on-login upgrades it (F3).
+ */
+function legacyHash(password: string): Promise<string> {
+  const N = 2 ** 15;
+  const r = 8;
+  const p = 1;
+  const salt = randomBytes(16);
+  return new Promise((resolve, reject) => {
+    scryptCb(
+      password.normalize("NFKC"),
+      salt,
+      32,
+      { N, r, p, maxmem: SCRYPT_PARAMS.maxmem },
+      (err, derived) => {
+        if (err) reject(err);
+        else
+          resolve(
+            ["scrypt", N, r, p, salt.toString("base64"), derived.toString("base64")].join(
+              "$",
+            ),
+          );
+      },
+    );
+  });
+}
 
 /**
  * End-to-end auth flow against a real (PGlite) Postgres, proving the JJC-5
@@ -151,5 +183,51 @@ describe("session lifecycle", () => {
     expect(await resolveSession(issued.token, db)).not.toBeNull();
     await revokeSession(issued.token, db);
     expect(await resolveSession(issued.token, db)).toBeNull();
+  });
+});
+
+describe("rehash-on-login (F3)", () => {
+  const LEGACY = {
+    teamName: "Legacy Co",
+    email: "legacy@acme.com",
+    password: "legacy-password-1",
+  };
+
+  it("upgrades a below-policy hash after one successful login", async () => {
+    const stored = await legacyHash(LEGACY.password);
+    const created = await authRepo.createAccountWithUser(
+      { teamName: LEGACY.teamName, email: LEGACY.email, passwordHash: stored },
+      db,
+    );
+    expect(created.ok).toBe(true);
+
+    // The seeded hash is genuinely on the old N=2^15 params.
+    const before = await authRepo.findUserByEmail(LEGACY.email, db);
+    expect(before?.passwordHash).toBe(stored);
+    expect(before?.passwordHash?.split("$")[1]).toBe(String(2 ** 15));
+
+    // One successful login triggers the transparent upgrade.
+    await authenticate({ email: LEGACY.email, password: LEGACY.password }, db);
+
+    const after = await authRepo.findUserByEmail(LEGACY.email, db);
+    expect(after?.passwordHash).not.toBe(stored);
+    expect(after?.passwordHash?.split("$")[1]).toBe(String(SCRYPT_PARAMS.N));
+    // The upgraded hash still verifies the same password.
+    expect(await verifyPassword(LEGACY.password, after!.passwordHash)).toBe(true);
+  });
+
+  it("leaves a current-params hash untouched after login", async () => {
+    const issued = await signUp(
+      { teamName: "Fresh Co", email: "fresh@acme.com", password: "fresh-password-1" },
+      db,
+    );
+    const before = await authRepo.findUserByEmail("fresh@acme.com", db);
+    await authenticate(
+      { email: "fresh@acme.com", password: "fresh-password-1" },
+      db,
+    );
+    const after = await authRepo.findUserByEmail("fresh@acme.com", db);
+    expect(after?.passwordHash).toBe(before?.passwordHash);
+    expect(issued.context.user.email).toBe("fresh@acme.com");
   });
 });

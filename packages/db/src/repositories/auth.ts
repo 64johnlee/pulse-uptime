@@ -93,6 +93,18 @@ export async function findUserWithAccountByEmail(
   return row;
 }
 
+/**
+ * Replace a user's stored password hash. Used for transparent rehash-on-login
+ * when an existing hash was produced with below-policy scrypt parameters.
+ */
+export async function updateUserPasswordHash(
+  userId: string,
+  passwordHash: string,
+  dbh: PulseDb = defaultDb,
+): Promise<void> {
+  await dbh.update(users).set({ passwordHash }).where(eq(users.id, userId));
+}
+
 export async function createSession(
   input: { userId: string; tokenHash: string; expiresAt: Date },
   dbh: PulseDb = defaultDb,

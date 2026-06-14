@@ -2,6 +2,11 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import {
+  checkAccountThrottle,
+  clearAuthFailures,
+  recordAuthFailure,
+} from "@/lib/auth/account-throttle";
 import { AuthError } from "@/lib/auth/errors";
 import { rateLimit } from "@/lib/auth/rate-limit";
 import { authenticate, signUp } from "@/lib/auth/service";
@@ -70,11 +75,24 @@ export async function logInAction(
     return { error: "Too many attempts. Please try again later.", values };
   }
 
+  // Per-account backoff (F2): blocks credential-stuffing against one email even
+  // when the attacker rotates source IPs. The IP limiter above can't see that.
+  if (!checkAccountThrottle(email).ok) {
+    return {
+      error: "Too many failed attempts for this account. Please wait and try again.",
+      values,
+    };
+  }
+
   try {
     const { token, expiresAt } = await authenticate({ email, password });
+    clearAuthFailures(email);
     await setSessionCookie(token, expiresAt);
   } catch (err) {
-    if (err instanceof AuthError) return { error: err.message, values };
+    if (err instanceof AuthError) {
+      if (err.code === "invalid_credentials") recordAuthFailure(email);
+      return { error: err.message, values };
+    }
     console.error("[auth] login failed:", err);
     return { error: "Something went wrong. Please try again.", values };
   }

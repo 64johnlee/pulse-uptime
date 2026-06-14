@@ -64,7 +64,19 @@ const expectedStatusCode = z.preprocess(
     .nullable(),
 );
 
-const enabled = z.coerce.boolean();
+/**
+ * Enabled flag. We deliberately avoid `z.coerce.boolean()`: it does plain JS
+ * truthiness, so a JSON body of `{"enabled":"false"}` (a non-empty string)
+ * coerces to `true` — the opposite of the caller's intent. Instead we parse
+ * explicitly: real booleans pass through (the UI form already sends one), and
+ * stringy values from the REST API are matched against an affirmative set, so
+ * "false"/"0"/"no"/"" all resolve to `false`.
+ */
+const TRUTHY_STRINGS = new Set(["true", "1", "on", "yes"]);
+const enabled = z.union([z.boolean(), z.string()]).transform((value) => {
+  if (typeof value === "boolean") return value;
+  return TRUTHY_STRINGS.has(value.trim().toLowerCase());
+});
 
 export const createMonitorSchema = z.object({
   name,

@@ -2,7 +2,7 @@ import { authRepo, db as defaultDb, type PulseDb } from "@pulse/db";
 import type { SessionContext } from "@pulse/db";
 import { SESSION_TTL_MS } from "./config";
 import { AuthError } from "./errors";
-import { hashPassword, verifyPassword } from "./password";
+import { hashPassword, needsRehash, verifyPassword } from "./password";
 import { generateSessionToken, hashSessionToken } from "./tokens";
 import {
   logInSchema,
@@ -103,6 +103,18 @@ export async function authenticate(
   const ok = await verifyPassword(password, found.user.passwordHash);
   if (!ok) {
     throw new AuthError("invalid_credentials", "Invalid email or password.");
+  }
+
+  // Transparent upgrade: if the stored hash predates the current scrypt policy,
+  // re-hash with the live params now that we have the plaintext. Best-effort —
+  // a failed upgrade must never block an otherwise-valid login.
+  if (needsRehash(found.user.passwordHash)) {
+    try {
+      const upgraded = await hashPassword(password);
+      await authRepo.updateUserPasswordHash(found.user.id, upgraded, dbh);
+    } catch (err) {
+      console.error("[auth] password rehash-on-login failed:", err);
+    }
   }
 
   return issueSession(found.user.id, found.account, found.user, dbh);

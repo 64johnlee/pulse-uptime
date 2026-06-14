@@ -91,3 +91,23 @@ export async function verifyPassword(
     return false;
   }
 }
+
+/**
+ * Whether a stored hash was produced with weaker parameters than the current
+ * policy and should be transparently re-hashed after a successful login. Returns
+ * false for anything unparseable (a malformed row never verifies, so there is
+ * nothing to upgrade). The check is "below current" for N — never trigger a
+ * downgrade — and "differs from current" for r/p.
+ */
+export function needsRehash(stored: string): boolean {
+  const parts = stored.split("$");
+  if (parts.length !== 6 || parts[0] !== "scrypt") return false;
+
+  const N = Number(parts[1]);
+  const r = Number(parts[2]);
+  const p = Number(parts[3]);
+  if (!Number.isInteger(N) || !Number.isInteger(r) || !Number.isInteger(p)) {
+    return false;
+  }
+  return N < SCRYPT_PARAMS.N || r !== SCRYPT_PARAMS.r || p !== SCRYPT_PARAMS.p;
+}

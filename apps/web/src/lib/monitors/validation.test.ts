@@ -62,4 +62,33 @@ describe("createMonitorSchema", () => {
     const result = createMonitorSchema.safeParse({ ...base, name: "  " });
     expect(result.success).toBe(false);
   });
+
+  // F5: the REST API sends raw JSON, so a stringy "false" must NOT coerce to
+  // true the way z.coerce.boolean() would.
+  it('parses the string "false" as false (no truthiness footgun)', () => {
+    const parsed = createMonitorSchema.parse({ ...base, enabled: "false" });
+    expect(parsed.enabled).toBe(false);
+  });
+
+  it("parses other falsey strings as false", () => {
+    for (const value of ["false", "0", "no", "", "  FALSE  "]) {
+      expect(
+        createMonitorSchema.parse({ ...base, enabled: value }).enabled,
+      ).toBe(false);
+    }
+  });
+
+  it("parses affirmative strings and real booleans as true", () => {
+    for (const value of ["true", "1", "on", "yes", "TRUE"]) {
+      expect(
+        createMonitorSchema.parse({ ...base, enabled: value }).enabled,
+      ).toBe(true);
+    }
+    expect(createMonitorSchema.parse({ ...base, enabled: true }).enabled).toBe(
+      true,
+    );
+    expect(createMonitorSchema.parse({ ...base, enabled: false }).enabled).toBe(
+      false,
+    );
+  });
 });
