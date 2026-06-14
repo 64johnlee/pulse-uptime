@@ -45,6 +45,31 @@
   color: var(--color-up);
 }
 
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: clamp(1rem, 0.5rem + 2vw, 1.75rem);
+}
+
+.navCta {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: oklch(17% 0.02 250);
+  background: var(--color-up);
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition:
+    filter var(--ease-out-expo) 180ms,
+    transform var(--ease-out-expo) 180ms;
+}
+.navCta:hover,
+.navCta:focus-visible {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
 .hero {
   display: grid;
   align-content: center;

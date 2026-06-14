@@ -23,3 +23,11 @@ export type {
   SessionContext,
   CreateAccountWithUserResult,
 } from "./repositories/auth";
+
+// Typed monitors repository (account-scoped storage layer for monitors).
+export * as monitorsRepo from "./repositories/monitors";
+export type { Monitor, NewMonitor } from "./schema/monitors";
+export type {
+  CreateMonitorInput,
+  UpdateMonitorInput,
+} from "./repositories/monitors";

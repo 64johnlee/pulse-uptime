@@ -20,9 +20,15 @@ export default function HomePage() {
           <span className={styles.dot} aria-hidden="true" />
           pulse
         </span>
-        <nav aria-label="Primary">
+        <nav aria-label="Primary" className={styles.navLinks}>
           <a className={styles.navLink} href="/api/health">
             status
+          </a>
+          <a className={styles.navLink} href="/login">
+            log in
+          </a>
+          <a className={styles.navCta} href="/signup">
+            get started
           </a>
         </nav>
       </header>
