@@ -1,0 +1,60 @@
+name: Deploy (Vercel)
+
+# Optional CLI-driven deploy to Vercel. This is INERT by default: it only runs
+# when the repository variable `DEPLOY_ENABLED` is set to "true" AND the Vercel
+# secrets below are configured. The simplest path is Vercel's native Git
+# integration (no workflow needed) — see README "Deploy". Use this workflow only
+# if you prefer token-driven deploys from CI.
+#
+# Required to enable:
+#   - Repo variable:  DEPLOY_ENABLED = true
+#   - Repo secrets:   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# Pushes to the default branch deploy to production; all other refs/PRs get a
+# preview URL.
+on:
+  push:
+  pull_request:
+
+jobs:
+  deploy:
+    name: Deploy to Vercel
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      IS_PROD: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=${{ env.IS_PROD == 'true' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        run: vercel build ${{ env.IS_PROD == 'true' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt ${{ env.IS_PROD == 'true' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }})
+          echo "Deployed to: $URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        run: echo "### Preview/Production URL\n${{ steps.deploy.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
