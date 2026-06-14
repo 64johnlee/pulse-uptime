@@ -8,6 +8,20 @@
       "when": 1781450026885,
       "tag": "0000_fixed_hellion",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781450423075,
+      "tag": "0001_majestic_senator_kelly",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781450749159,
+      "tag": "0002_little_terrax",
+      "breakpoints": true
     }
   ]
 }

@@ -4,3 +4,8 @@
  * migrations, and so consumers can `import { schema } from "@pulse/db"`.
  */
 export * from "./app-meta";
+export * from "./auth";
+export * from "./monitors";
+export * from "./checks";
+export * from "./incidents";
+export * from "./relations";
