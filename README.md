@@ -66,8 +66,15 @@ pnpm db:verify
 
 ## Health check
 
-`GET /api/health` returns `200 {status:"ok",db:"up"}` when the app can reach
-Postgres, `503` otherwise.
+`GET /api/health` (web app) returns `200 {status:"ok",db:"up"}` when the app can
+reach Postgres, `503` otherwise.
+
+The **worker** exposes its own probes on `WORKER_HEALTH_PORT` (default 8080):
+
+- `GET /healthz` — liveness (process is up). Restart the worker if this fails.
+- `GET /readyz` — readiness (a check tick completed recently and didn't error).
+  Returns `503` before the first tick, when ticks go stale, or when the last
+  tick errored (e.g. the DB is unreachable).
 
 ## Continuous integration
 
@@ -119,3 +126,28 @@ URL.
 > Note: Vercel Hobby is free but its ToS restricts commercial use — a company
 > deployment needs Vercel **Pro (~$20/mo)**. That spend and the canonical GitHub
 > org are pending CEO sign-off; CI is free regardless.
+
+### Worker deploy (check-runner)
+
+The worker is a **separate long-running process** from the web app (ADR 0001)
+and Vercel does not host always-on processes, so it deploys as a container.
+Full rationale, the ICMP/SSRF design, and the host escalation are in
+[docs/adr/0004-worker-deploy.md](docs/adr/0004-worker-deploy.md).
+
+```bash
+# Build (from the repo root — the pnpm workspace must be in the build context)
+docker build -f apps/worker/Dockerfile -t pulse-worker .
+
+# Or run it alongside Postgres locally via compose:
+docker compose up -d worker      # restart: unless-stopped + /readyz healthcheck
+```
+
+The compose `worker` service self-heals (`restart: unless-stopped`), waits for a
+healthy DB, and is granted only `NET_RAW` (for ICMP ping monitors — never
+`privileged`). On an always-on host (Render/Fly.io/Railway/VM — pending CEO
+sign-off on the recurring cost) wire `/healthz`/`/readyz` to the platform's
+liveness/readiness checks.
+
+**SSRF egress:** by default the worker only probes **public** addresses;
+internal/link-local/metadata/RFC1918 targets are blocked. Self-hosters who
+intentionally monitor an internal network can set `PULSE_ALLOW_PRIVATE_TARGETS=true`.

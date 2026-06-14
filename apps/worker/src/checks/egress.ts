@@ -143,6 +143,13 @@ export function guardedLookup(
   });
 }
 
+/** Record a blocked egress attempt. These are security-relevant — a tenant
+ * repeatedly probing internal/metadata addresses should leave a server-side
+ * trail — so they are logged even though the probe just becomes a "down". */
+export function logEgressBlock(monitorId: string, reason: string): void {
+  console.warn(`[worker] egress blocked monitor ${monitorId}: ${reason}`);
+}
+
 /** Walk an error's `cause` chain and return the egress block reason, if any.
  * `fetch` wraps the lookup rejection, so the real reason hides in `.cause`. */
 export function egressBlockReason(err: unknown): string | null {

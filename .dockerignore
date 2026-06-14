@@ -1,0 +1,16 @@
+# Keep the Docker build context small and reproducible — installs run from the
+# lockfile inside the image, and local build output must never leak in.
+node_modules
+**/node_modules
+.git
+.next
+**/.next
+dist
+**/dist
+*.log
+.env
+.env.*
+!.env.example
+coverage
+**/coverage
+.DS_Store

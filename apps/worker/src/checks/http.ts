@@ -5,6 +5,7 @@ import {
   assertPublicHost,
   egressBlockReason,
   guardedLookup,
+  logEgressBlock,
 } from "./egress";
 import type { ProbeResult } from "./types";
 
@@ -66,6 +67,7 @@ export async function runHttpCheck(monitor: Monitor): Promise<ProbeResult> {
     const aborted = err instanceof Error && err.name === "AbortError";
     const blocked =
       err instanceof EgressBlockedError ? err.message : egressBlockReason(err);
+    if (blocked) logEgressBlock(monitor.id, blocked);
     return {
       status: "down",
       responseTimeMs: null,

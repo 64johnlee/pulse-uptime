@@ -172,7 +172,10 @@ describe("runDueChecks", () => {
     expect(incidents[0]!.status).toBe("open");
   });
 
-  it("skips unsupported monitor types without recording a check", async () => {
+  it("probes ping monitors and records the result (no longer skipped)", async () => {
+    // ping was the deferred type in JJC-7; JJC-9 implements it, so the runner
+    // now probes it like any other. Inject the probe so the assertion doesn't
+    // depend on the host's `ping` binary or network.
     const [account] = await testDb.db
       .insert(schema.accounts)
       .values({ name: "Acme Inc" })
@@ -183,16 +186,27 @@ describe("runDueChecks", () => {
         accountId: account!.id,
         name: "Ping target",
         type: "ping",
-        target: "127.0.0.1",
+        target: "1.1.1.1",
         nextCheckAt: T0,
       })
       .returning();
 
-    const summary = await runDueChecks({ db: testDb.db, now: at(0) });
+    const summary = await runDueChecks({
+      db: testDb.db,
+      now: at(0),
+      probe: async () => ({
+        status: "up",
+        responseTimeMs: 7,
+        statusCode: null,
+        error: null,
+      }),
+    });
 
-    expect(summary).toMatchObject({ claimed: 1, skipped: 1, recorded: 0 });
-    expect(await getChecks(monitor!.id)).toHaveLength(0);
-    // Still rescheduled so it doesn't hot-loop.
+    expect(summary).toMatchObject({ claimed: 1, skipped: 0, recorded: 1 });
+    const checks = await getChecks(monitor!.id);
+    expect(checks).toHaveLength(1);
+    expect(checks[0]!.status).toBe("up");
+    // Rescheduled forward like any probed monitor.
     const updated = await testDb.db
       .select()
       .from(schema.monitors)

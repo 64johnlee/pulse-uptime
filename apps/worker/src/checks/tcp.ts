@@ -1,6 +1,6 @@
 import net from "node:net";
 import type { Monitor } from "@pulse/db/schema";
-import { EgressBlockedError, assertPublicHost } from "./egress";
+import { EgressBlockedError, assertPublicHost, logEgressBlock } from "./egress";
 import type { ProbeResult } from "./types";
 
 /**
@@ -32,6 +32,7 @@ export async function runTcpCheck(monitor: Monitor): Promise<ProbeResult> {
     if (!validated) throw new Error(`could not resolve host "${host}"`);
     address = validated;
   } catch (err) {
+    if (err instanceof EgressBlockedError) logEgressBlock(monitor.id, err.message);
     return {
       status: "down",
       responseTimeMs: null,
@@ -83,12 +84,17 @@ export async function runTcpCheck(monitor: Monitor): Promise<ProbeResult> {
   });
 }
 
-/** Split "host:port" (IPv4/hostname). Returns null on a malformed target. */
+/** Split "host:port" into host + port. Handles IPv4, hostnames, and bracketed
+ * IPv6 literals (`[2606:4700::1111]:443`) — the brackets are stripped so the
+ * egress classifier sees a bare address. Returns null on a malformed target. */
 function parseHostPort(target: string): { host: string; port: number } | null {
   const idx = target.lastIndexOf(":");
   if (idx <= 0) return null;
-  const host = target.slice(0, idx);
   const port = Number(target.slice(idx + 1));
   if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+  // Strip the IPv6 bracket notation if present (host is everything before the
+  // last colon, e.g. "[::1]" → "::1").
+  const host = target.slice(0, idx).replace(/^\[|\]$/g, "");
+  if (host.length === 0) return null;
   return { host, port };
 }

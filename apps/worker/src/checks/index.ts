@@ -1,20 +1,24 @@
 import type { Monitor } from "@pulse/db/schema";
 import { runHttpCheck } from "./http";
+import { runPingCheck } from "./ping";
 import { runTcpCheck } from "./tcp";
 import type { ProbeResult } from "./types";
 
 export type { ProbeResult } from "./types";
 export { runHttpCheck } from "./http";
+export { runPingCheck } from "./ping";
 export { runTcpCheck } from "./tcp";
 
 /**
- * Monitor types the worker can currently probe. `ping` (ICMP) needs raw sockets
- * / elevated privileges, so it is deferred — the runner skips such monitors
- * rather than recording false failures. Track via a follow-up issue.
+ * Monitor types the worker can probe. All three persisted types are now
+ * supported: `http`/`tcp` connect directly, and `ping` shells out to the OS
+ * `ping` binary (no raw sockets — see ./ping.ts). The set is kept as the single
+ * gate so an unknown future enum value is skipped rather than mishandled.
  */
 export const SUPPORTED_TYPES: ReadonlySet<Monitor["type"]> = new Set([
   "http",
   "tcp",
+  "ping",
 ]);
 
 export function isSupported(monitor: Monitor): boolean {
@@ -30,6 +34,8 @@ export function probe(monitor: Monitor): Promise<ProbeResult> {
       return runHttpCheck(monitor);
     case "tcp":
       return runTcpCheck(monitor);
+    case "ping":
+      return runPingCheck(monitor);
     default:
       return Promise.reject(
         new Error(`unsupported monitor type: ${monitor.type}`),

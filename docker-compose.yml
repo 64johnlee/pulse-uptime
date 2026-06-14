@@ -1,8 +1,9 @@
 # Local development services for Pulse.
 #
-#   docker compose up -d db      # start Postgres in the background
-#   pnpm db:migrate              # apply migrations
-#   docker compose down          # stop (add -v to wipe data)
+#   docker compose up -d db          # start Postgres in the background
+#   pnpm db:migrate                  # apply migrations
+#   docker compose up -d worker      # build + run the check-runner worker
+#   docker compose down              # stop (add -v to wipe data)
 #
 # Credentials here are LOCAL-ONLY defaults and match .env.example. Production
 # uses a managed Postgres with secrets injected via the environment.
@@ -24,6 +25,43 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # Check-runner worker — a long-running process, separate from the web app per
+  # ADR 0001. `restart: unless-stopped` is the restart-on-crash mechanism; the
+  # healthcheck hits the in-process readiness probe so the orchestrator can see
+  # a wedged-but-alive worker. See docs/adr/0004-worker-deploy.md.
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: pulse-worker
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Inside the compose network Postgres is reachable as host `db`.
+      DATABASE_URL: postgres://pulse:pulse@db:5432/pulse
+      NODE_ENV: production
+      WORKER_POLL_INTERVAL_MS: "15000"
+      WORKER_HEALTH_PORT: "8080"
+    # ICMP ping monitors need unprivileged raw sockets. Grant only NET_RAW
+    # (never run privileged); the worker process itself stays the `node` user.
+    cap_add:
+      - NET_RAW
+    healthcheck:
+      # Readiness flips to 503 if no tick has completed recently — see health.ts.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 volumes:
   pulse-pgdata:

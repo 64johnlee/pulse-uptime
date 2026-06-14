@@ -48,4 +48,18 @@ describe("runTcpCheck", () => {
     expect(result.status).toBe("down");
     expect(result.error).toContain("invalid tcp target");
   });
+
+  it("accepts a bracketed IPv6 loopback target (egress unlocked here)", async () => {
+    // Brackets must be stripped so the address classifier sees "::1". With
+    // egress unlocked in this suite, ::1 is reachable and refuses on port 1.
+    const result = await runTcpCheck(
+      makeMonitor({ type: "tcp", target: "[::1]:1", timeoutMs: 2000 }),
+    );
+
+    // The point is that it is NOT a "could not resolve host" error — the
+    // bracketed literal parsed and we actually attempted a connection.
+    expect(result.status).toBe("down");
+    expect(result.error).not.toContain("could not resolve");
+    expect(result.error).not.toContain("invalid tcp target");
+  });
 });
