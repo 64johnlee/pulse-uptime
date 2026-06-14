@@ -32,3 +32,7 @@ export const MAX_STATUS_CODE = 599;
 
 export const MAX_NAME_LENGTH = 120;
 export const MAX_TARGET_LENGTH = 2048;
+
+/** Per-account monitor cap — bounds resource growth and create-spam for v1.
+ * Generous for the target persona (small dev teams); revisit with billing. */
+export const MAX_MONITORS_PER_ACCOUNT = 100;

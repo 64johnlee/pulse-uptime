@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { db as defaultDb, type PulseDb } from "../client";
 import { monitors } from "../schema/monitors";
 import type { Monitor } from "../schema/monitors";
@@ -17,28 +17,31 @@ import type { Monitor } from "../schema/monitors";
  * auth schema (JJC-5).
  */
 
-/** Fields a caller may set when creating a monitor. */
+/**
+ * Fields a caller may set when creating a monitor. `timeoutMs` is intentionally
+ * not exposed yet: it has no validated entry point, so the DB default applies
+ * until the worker (JJC-7) needs it and a bounded validator lands with it.
+ */
 export interface CreateMonitorInput {
   name: string;
   target: string;
   method?: string;
   intervalSeconds?: number;
-  timeoutMs?: number;
   expectedStatusCode?: number | null;
   enabled?: boolean;
 }
 
 /**
  * Fields a caller may change. All optional — only provided keys are written.
- * `accountId`, `id`, `status`, and scheduling columns are intentionally not
- * editable here (scheduling/state is owned by the worker, JJC-7).
+ * `accountId`, `id`, `status`, scheduling columns, and `timeoutMs` are
+ * intentionally not editable here (scheduling/state is owned by the worker,
+ * JJC-7).
  */
 export interface UpdateMonitorInput {
   name?: string;
   target?: string;
   method?: string;
   intervalSeconds?: number;
-  timeoutMs?: number;
   expectedStatusCode?: number | null;
   enabled?: boolean;
 }
@@ -53,6 +56,18 @@ export async function listMonitors(
     .from(monitors)
     .where(eq(monitors.accountId, accountId))
     .orderBy(desc(monitors.createdAt));
+}
+
+/** Count an account's monitors. Used to enforce the per-account cap. */
+export async function countMonitors(
+  accountId: string,
+  dbh: PulseDb = defaultDb,
+): Promise<number> {
+  const [row] = await dbh
+    .select({ value: count() })
+    .from(monitors)
+    .where(eq(monitors.accountId, accountId));
+  return row?.value ?? 0;
 }
 
 /** Fetch a single monitor owned by `accountId`, or undefined. */
@@ -84,7 +99,6 @@ export async function createMonitor(
       target: input.target,
       method: input.method ?? "GET",
       intervalSeconds: input.intervalSeconds,
-      timeoutMs: input.timeoutMs,
       expectedStatusCode: input.expectedStatusCode ?? null,
       enabled: input.enabled,
     })
@@ -112,7 +126,6 @@ export async function updateMonitor(
   if (input.method !== undefined) patch.method = input.method;
   if (input.intervalSeconds !== undefined)
     patch.intervalSeconds = input.intervalSeconds;
-  if (input.timeoutMs !== undefined) patch.timeoutMs = input.timeoutMs;
   if (input.expectedStatusCode !== undefined)
     patch.expectedStatusCode = input.expectedStatusCode;
   if (input.enabled !== undefined) patch.enabled = input.enabled;

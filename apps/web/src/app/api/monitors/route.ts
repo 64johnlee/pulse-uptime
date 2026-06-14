@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
+import { rateLimit } from "@/lib/auth/rate-limit";
 import { createMonitor, listMonitors } from "@/lib/monitors/service";
+import { MonitorError } from "@/lib/monitors/errors";
 import { createMonitorSchema } from "@/lib/monitors/validation";
+
+const CREATE_LIMIT = 30;
+const CREATE_WINDOW_MS = 5 * 60 * 1000;
 
 /**
  * REST API for monitors (collection). Account-scoped via the session cookie —
@@ -35,6 +40,19 @@ export async function POST(request: Request) {
     );
   }
 
+  if (
+    !rateLimit(
+      `monitor-create:${session.account.id}`,
+      CREATE_LIMIT,
+      CREATE_WINDOW_MS,
+    ).ok
+  ) {
+    return NextResponse.json(
+      { success: false, error: "Rate limit exceeded. Try again shortly." },
+      { status: 429 },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -57,6 +75,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const monitor = await createMonitor(session.account.id, parsed.data);
-  return NextResponse.json({ success: true, data: monitor }, { status: 201 });
+  try {
+    const monitor = await createMonitor(session.account.id, parsed.data);
+    return NextResponse.json({ success: true, data: monitor }, { status: 201 });
+  } catch (err) {
+    if (err instanceof MonitorError) {
+      return NextResponse.json(
+        { success: false, error: err.message },
+        { status: 409 },
+      );
+    }
+    throw err;
+  }
 }

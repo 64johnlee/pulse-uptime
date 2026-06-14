@@ -1,4 +1,6 @@
 import { monitorsRepo, type Monitor, type PulseDb } from "@pulse/db";
+import { MAX_MONITORS_PER_ACCOUNT } from "./config";
+import { MonitorError } from "./errors";
 import type { CreateMonitorFields, UpdateMonitorFields } from "./validation";
 
 /**
@@ -32,11 +34,23 @@ export function getMonitor(
   return monitorsRepo.getMonitor(accountId, id, dbh);
 }
 
-export function createMonitor(
+/**
+ * Create a monitor, enforcing the per-account cap. Throws `MonitorError`
+ * ("limit_reached") when the account is at the limit so callers can surface a
+ * clear message (HTTP 409 / inline error) rather than silently growing.
+ */
+export async function createMonitor(
   accountId: string,
   fields: CreateMonitorFields,
   dbh?: PulseDb,
 ): Promise<Monitor> {
+  const existing = await monitorsRepo.countMonitors(accountId, dbh);
+  if (existing >= MAX_MONITORS_PER_ACCOUNT) {
+    throw new MonitorError(
+      "limit_reached",
+      `You've reached the limit of ${MAX_MONITORS_PER_ACCOUNT} monitors.`,
+    );
+  }
   return monitorsRepo.createMonitor(
     accountId,
     {

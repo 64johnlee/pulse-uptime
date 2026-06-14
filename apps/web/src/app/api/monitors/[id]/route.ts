@@ -20,30 +20,34 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const UNAUTH = NextResponse.json(
-  { success: false, error: "Not authenticated." },
-  { status: 401 },
-);
+// Fresh response per call — NextResponse objects are mutable, so they must
+// never be shared across requests.
+const unauthorized = () =>
+  NextResponse.json(
+    { success: false, error: "Not authenticated." },
+    { status: 401 },
+  );
 
-const NOT_FOUND = NextResponse.json(
-  { success: false, error: "Monitor not found." },
-  { status: 404 },
-);
+const notFound = () =>
+  NextResponse.json(
+    { success: false, error: "Monitor not found." },
+    { status: 404 },
+  );
 
 export async function GET(_request: Request, context: RouteContext) {
   const session = await getSession();
-  if (!session) return UNAUTH;
+  if (!session) return unauthorized();
 
   const { id } = await context.params;
   const monitor = await getMonitor(session.account.id, id);
-  if (!monitor) return NOT_FOUND;
+  if (!monitor) return notFound();
 
   return NextResponse.json({ success: true, data: monitor });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
   const session = await getSession();
-  if (!session) return UNAUTH;
+  if (!session) return unauthorized();
 
   let body: unknown;
   try {
@@ -69,18 +73,18 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const { id } = await context.params;
   const monitor = await updateMonitor(session.account.id, id, parsed.data);
-  if (!monitor) return NOT_FOUND;
+  if (!monitor) return notFound();
 
   return NextResponse.json({ success: true, data: monitor });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
   const session = await getSession();
-  if (!session) return UNAUTH;
+  if (!session) return unauthorized();
 
   const { id } = await context.params;
   const removed = await deleteMonitor(session.account.id, id);
-  if (!removed) return NOT_FOUND;
+  if (!removed) return notFound();
 
   return NextResponse.json({ success: true, data: { id } });
 }

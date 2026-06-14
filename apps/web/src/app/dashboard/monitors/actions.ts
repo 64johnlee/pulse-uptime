@@ -4,12 +4,19 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
+import { rateLimit } from "@/lib/auth/rate-limit";
 import {
   createMonitor,
   deleteMonitor,
   updateMonitor,
 } from "@/lib/monitors/service";
+import { MonitorError } from "@/lib/monitors/errors";
 import { createMonitorSchema } from "@/lib/monitors/validation";
+
+// Coarse per-account anti-abuse limit for creates (per process; see
+// rate-limit.ts caveats). Edits/deletes are bounded by the monitor cap.
+const CREATE_LIMIT = 30;
+const CREATE_WINDOW_MS = 5 * 60 * 1000;
 
 /**
  * Monitor server actions for the dashboard UI. Like the auth actions, these
@@ -68,6 +75,10 @@ export async function createMonitorAction(
   const { account } = await requireSession();
   const raw = readForm(formData);
 
+  if (!rateLimit(`monitor-create:${account.id}`, CREATE_LIMIT, CREATE_WINDOW_MS).ok) {
+    return { error: "Too many monitors created just now. Try again shortly.", values: raw };
+  }
+
   const parsed = createMonitorSchema.safeParse(raw);
   if (!parsed.success) {
     return { fieldErrors: fieldErrorsFrom(parsed.error), values: raw };
@@ -76,6 +87,7 @@ export async function createMonitorAction(
   try {
     await createMonitor(account.id, parsed.data);
   } catch (err) {
+    if (err instanceof MonitorError) return { error: err.message, values: raw };
     console.error("[monitors] create failed:", err);
     return { error: "Could not save the monitor. Please try again.", values: raw };
   }

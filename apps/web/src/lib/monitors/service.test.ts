@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { authRepo, type PulseDb } from "@pulse/db";
 import { createTestDb, type TestDb } from "@pulse/db/testing";
 import { createMonitorSchema } from "./validation";
+import { MonitorError } from "./errors";
+import { MAX_MONITORS_PER_ACCOUNT } from "./config";
 import {
   createMonitor,
   deleteMonitor,
@@ -123,5 +125,21 @@ describe("updateMonitor + deleteMonitor", () => {
     const created = await createMonitor(accountA, fields(), db);
     expect(await deleteMonitor(accountA, created.id, db)).toBe(true);
     expect(await listMonitors(accountA, db)).toHaveLength(0);
+  });
+});
+
+describe("per-account cap", () => {
+  it("rejects creating past the limit, and the cap is per account", async () => {
+    for (let i = 0; i < MAX_MONITORS_PER_ACCOUNT; i++) {
+      await createMonitor(accountA, fields({ name: `m${i}` }), db);
+    }
+
+    await expect(createMonitor(accountA, fields(), db)).rejects.toBeInstanceOf(
+      MonitorError,
+    );
+
+    // A different account is unaffected by account A hitting its cap.
+    const other = await createMonitor(accountB, fields(), db);
+    expect(other.accountId).toBe(accountB);
   });
 });
