@@ -45,7 +45,14 @@ export default async function DashboardPage() {
         </h1>
         <p className={styles.lede}>
           You&rsquo;re signed in as {user.email}. This is your account&rsquo;s
-          private workspace — monitors and status pages land here next.
+          private workspace. Spin up your first HTTP monitor to start tracking
+          uptime.
+        </p>
+
+        <p>
+          <Link className={styles.cta} href="/dashboard/monitors">
+            Manage monitors →
+          </Link>
         </p>
 
         <dl className={styles.meta}>

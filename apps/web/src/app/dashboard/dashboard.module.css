@@ -86,6 +86,26 @@
   margin: 0;
 }
 
+.cta {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-bg);
+  background: var(--color-up);
+  border-radius: 10px;
+  padding: 0.6rem 1.1rem;
+  text-decoration: none;
+  transition:
+    transform 180ms var(--ease-out-expo),
+    filter 180ms var(--ease-out-expo);
+}
+.cta:hover,
+.cta:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
 .meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
