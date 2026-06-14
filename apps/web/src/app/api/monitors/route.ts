@@ -41,10 +41,12 @@ export async function POST(request: Request) {
   }
 
   if (
-    !rateLimit(
-      `monitor-create:${session.account.id}`,
-      CREATE_LIMIT,
-      CREATE_WINDOW_MS,
+    !(
+      await rateLimit(
+        `monitor-create:${session.account.id}`,
+        CREATE_LIMIT,
+        CREATE_WINDOW_MS,
+      )
     ).ok
   ) {
     return NextResponse.json(

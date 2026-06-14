@@ -7,6 +7,7 @@ import {
   clearAuthFailures,
   recordAuthFailure,
 } from "@/lib/auth/account-throttle";
+import { clientKeyFromHeaders } from "@/lib/auth/client-ip";
 import { AuthError } from "@/lib/auth/errors";
 import { rateLimit } from "@/lib/auth/rate-limit";
 import { authenticate, signUp } from "@/lib/auth/service";
@@ -33,8 +34,7 @@ const WINDOW_MS = 15 * 60 * 1000;
 
 async function clientKey(): Promise<string> {
   const h = await headers();
-  const fwd = h.get("x-forwarded-for");
-  return fwd?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  return clientKeyFromHeaders((name) => h.get(name));
 }
 
 export async function signUpAction(
@@ -47,7 +47,7 @@ export async function signUpAction(
   const values = { teamName, email };
 
   const ip = await clientKey();
-  if (!rateLimit(`signup:${ip}`, SIGNUP_LIMIT, WINDOW_MS).ok) {
+  if (!(await rateLimit(`signup:${ip}`, SIGNUP_LIMIT, WINDOW_MS)).ok) {
     return { error: "Too many attempts. Please try again later.", values };
   }
 
@@ -71,7 +71,7 @@ export async function logInAction(
   const values = { email };
 
   const ip = await clientKey();
-  if (!rateLimit(`login:${ip}`, LOGIN_LIMIT, WINDOW_MS).ok) {
+  if (!(await rateLimit(`login:${ip}`, LOGIN_LIMIT, WINDOW_MS)).ok) {
     return { error: "Too many attempts. Please try again later.", values };
   }
 

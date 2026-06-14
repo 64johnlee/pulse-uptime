@@ -75,7 +75,10 @@ export async function createMonitorAction(
   const { account } = await requireSession();
   const raw = readForm(formData);
 
-  if (!rateLimit(`monitor-create:${account.id}`, CREATE_LIMIT, CREATE_WINDOW_MS).ok) {
+  if (
+    !(await rateLimit(`monitor-create:${account.id}`, CREATE_LIMIT, CREATE_WINDOW_MS))
+      .ok
+  ) {
     return { error: "Too many monitors created just now. Try again shortly.", values: raw };
   }
 
