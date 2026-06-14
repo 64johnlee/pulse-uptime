@@ -1,30 +1,26 @@
 import "dotenv/config";
+import { db } from "@pulse/db";
+import { runDueChecks } from "./runner";
 
 /**
- * Pulse check-runner worker (skeleton).
+ * Pulse check-runner worker.
  *
- * This is a SEPARATE process from the Next.js web app (see
- * docs/adr/0001-stack.md). Its job is to poll due monitors, execute checks
- * (HTTP/TCP/ping), record results, and open/resolve incidents. For now it runs
- * a no-op tick loop so the process boots and the deploy path exists; the real
- * scheduling and check logic land with the data model (JJC-4) and monitor
- * features.
+ * A SEPARATE process from the Next.js web app (see docs/adr/0001-stack.md). On
+ * each poll it claims every monitor whose `next_check_at` is due, probes the
+ * target (HTTP/TCP), appends a `checks` row, and opens/resolves incidents on
+ * up↔down transitions. Scheduling and incident logic live in `runner.ts`; this
+ * file is just the loop and lifecycle wiring.
  */
 const POLL_INTERVAL_MS = Number(process.env.WORKER_POLL_INTERVAL_MS ?? 15000);
 
 let running = true;
-
-async function tick(): Promise<void> {
-  // TODO(JJC-4+): claim due monitors, run checks, persist results & incidents.
-  console.log(`[worker] tick @ ${new Date().toISOString()} — no monitors yet`);
-}
 
 async function main(): Promise<void> {
   console.log(
     `[worker] check-runner started (poll interval ${POLL_INTERVAL_MS}ms)`,
   );
 
-  const shutdown = (signal: string) => {
+  const shutdown = (signal: string): void => {
     console.log(`[worker] received ${signal}, shutting down`);
     running = false;
   };
@@ -33,14 +29,25 @@ async function main(): Promise<void> {
 
   while (running) {
     try {
-      await tick();
+      const summary = await runDueChecks({ db });
+      if (summary.claimed > 0) {
+        console.log(
+          `[worker] tick — claimed ${summary.claimed}, recorded ${summary.recorded}` +
+            `, incidents +${summary.incidentsOpened}/-${summary.incidentsResolved}` +
+            (summary.skipped > 0 ? `, skipped ${summary.skipped}` : ""),
+        );
+      }
     } catch (err) {
       console.error("[worker] tick failed:", err);
     }
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    await sleep(POLL_INTERVAL_MS);
   }
 
   console.log("[worker] stopped");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 main().catch((err) => {
