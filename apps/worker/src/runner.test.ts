@@ -21,6 +21,10 @@ describe("runDueChecks", () => {
   const INTERVAL = 60;
 
   beforeEach(async () => {
+    // The probes target a loopback server; unlock egress so the SSRF guard
+    // (which blocks 127.0.0.1 by default) doesn't reject them. Mirrors the
+    // self-hosted "monitor an internal host" configuration.
+    process.env.PULSE_ALLOW_PRIVATE_TARGETS = "true";
     testDb = await createTestDb();
     statusToReturn = 200;
     server = http.createServer((_req, res) => {
@@ -33,6 +37,7 @@ describe("runDueChecks", () => {
   });
 
   afterEach(async () => {
+    delete process.env.PULSE_ALLOW_PRIVATE_TARGETS;
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await testDb.close();
   });

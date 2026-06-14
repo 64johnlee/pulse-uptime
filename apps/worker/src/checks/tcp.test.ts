@@ -8,12 +8,15 @@ let server: net.Server;
 let port: number;
 
 beforeAll(async () => {
+  // Loopback target — unlock egress so the SSRF guard doesn't block 127.0.0.1.
+  process.env.PULSE_ALLOW_PRIVATE_TARGETS = "true";
   server = net.createServer((socket) => socket.end());
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   port = (server.address() as AddressInfo).port;
 });
 
 afterAll(async () => {
+  delete process.env.PULSE_ALLOW_PRIVATE_TARGETS;
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 

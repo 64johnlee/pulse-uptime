@@ -1,5 +1,6 @@
 import net from "node:net";
 import type { Monitor } from "@pulse/db/schema";
+import { EgressBlockedError, assertPublicHost } from "./egress";
 import type { ProbeResult } from "./types";
 
 /**
@@ -7,19 +8,41 @@ import type { ProbeResult } from "./types";
  * was established within the timeout; "down" means it timed out, was refused, or
  * the host could not be resolved. We close the socket immediately after connect
  * — for a port check, reachability is the signal, not the protocol on top.
+ *
+ * The host is resolved and validated through the egress guard first, and we
+ * connect to the validated IP literal so the connection can't be re-pointed at
+ * an internal address between resolution and connect (SSRF / DNS rebinding).
  */
-export function runTcpCheck(monitor: Monitor): Promise<ProbeResult> {
+export async function runTcpCheck(monitor: Monitor): Promise<ProbeResult> {
   const parsed = parseHostPort(monitor.target);
   if (!parsed) {
-    return Promise.resolve({
+    return {
       status: "down",
       responseTimeMs: null,
       statusCode: null,
       error: `invalid tcp target "${monitor.target}" (expected host:port)`,
-    });
+    };
   }
 
   const { host, port } = parsed;
+
+  let address: string;
+  try {
+    const [validated] = await assertPublicHost(host);
+    if (!validated) throw new Error(`could not resolve host "${host}"`);
+    address = validated;
+  } catch (err) {
+    return {
+      status: "down",
+      responseTimeMs: null,
+      statusCode: null,
+      error:
+        err instanceof EgressBlockedError
+          ? `blocked: ${err.message}`
+          : `could not resolve host "${host}"`,
+    };
+  }
+
   const start = performance.now();
   return new Promise((resolve) => {
     const socket = new net.Socket();
@@ -56,7 +79,7 @@ export function runTcpCheck(monitor: Monitor): Promise<ProbeResult> {
         error: err.code ?? err.message,
       }),
     );
-    socket.connect(port, host);
+    socket.connect(port, address);
   });
 }
 
