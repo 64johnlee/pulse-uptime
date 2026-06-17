@@ -1,11 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "builds": [
-    {
-      "src": "apps/web/package.json",
-      "use": "@vercel/next"
-    }
-  ],
-  "buildCommand": "pnpm build",
-  "installCommand": "pnpm install --frozen-lockfile"
+  "buildCommand": "cd apps/web && pnpm build",
+  "outputDirectory": "apps/web/.next"
 }
