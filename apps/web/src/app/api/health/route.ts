@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { pool } from "@pulse/db";
 
 import { buildHealth } from "@/lib/health";
-import { runMigrationsIfNeeded } from "@/lib/migrate-on-startup";
 
 /**
  * Liveness/readiness probe. Returns 200 when the app can reach Postgres, 503
@@ -12,13 +11,6 @@ import { runMigrationsIfNeeded } from "@/lib/migrate-on-startup";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  // Ensure migrations run on first health check
-  try {
-    await runMigrationsIfNeeded();
-  } catch (err) {
-    console.warn("[health] migration warning:", err);
-  }
-
   let dbReachable = false;
   try {
     await pool.query("select 1");
