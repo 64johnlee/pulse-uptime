@@ -1,4 +1,14 @@
 {
-  "buildCommand": "pnpm run build && echo 'Build complete'",
-  "outputDirectory": "apps/web/.next"
+  "builds": [
+    {
+      "src": "apps/web",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "apps/web/$1"
+    }
+  ]
 }
