@@ -6,7 +6,7 @@
 
 /** HTTP methods we let users probe with. Kept small and safe for v1. */
 export const HTTP_METHODS = ["GET", "HEAD", "POST"] as const;
-export type HttpMethod = (typeof HTTP_METHODS)[number];
+type HttpMethod = (typeof HTTP_METHODS)[number];
 
 /** Interval bounds (seconds). Floor keeps us from hammering targets; ceiling
  * is one day. The worker enforces the same floor when scheduling. */

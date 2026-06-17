@@ -11,7 +11,7 @@
  * can be unit-tested without booting Next.
  */
 
-export interface SecurityHeader {
+interface SecurityHeader {
   key: string;
   value: string;
 }

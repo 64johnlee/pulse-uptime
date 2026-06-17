@@ -14,7 +14,7 @@ export function formatInterval(seconds: number): string {
   return hours === 1 ? "every hour" : `every ${hours} hr`;
 }
 
-export type MonitorStatus = "up" | "down" | "paused" | "unknown";
+type MonitorStatus = "up" | "down" | "paused" | "unknown";
 
 /** Short label for a rolled-up monitor status. */
 export function statusLabel(status: MonitorStatus): string {

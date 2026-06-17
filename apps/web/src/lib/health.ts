@@ -2,7 +2,7 @@
  * Pure logic for the `/api/health` probe, kept separate from the route handler
  * so it is unit-testable without a database or the Next.js runtime.
  */
-export type HealthBody = {
+type HealthBody = {
   status: "ok" | "degraded";
   db: "up" | "down";
 };
