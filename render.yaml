@@ -3,12 +3,10 @@ services:
     name: pulse
     runtime: node
     plan: starter
-    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @pulse/web build
-    startCommand: cd apps/web && pnpm start
+    buildCommand: pnpm install --frozen-lockfile --prod=false && pnpm --filter @pulse/web build
+    startCommand: cd apps/web && NODE_ENV=production pnpm start
     rootDir: apps/web
     envVars:
-      - key: NODE_ENV
-        value: production
       - key: DATABASE_URL
         scope: build
 
