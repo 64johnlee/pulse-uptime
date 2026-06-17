@@ -7,6 +7,9 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "devDependencies": {
+    "next": "15.5.19"
+  },
   "scripts": {
     "dev": "pnpm --filter @pulse/web dev",
     "dev:worker": "pnpm --filter @pulse/worker dev",
