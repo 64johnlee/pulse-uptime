@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @pulse/web build",
-  "outputDirectory": "apps/web/.next"
+  "rootDirectory": "apps/web",
+  "buildCommand": "pnpm install --frozen-lockfile && next build",
+  "installCommand": "pnpm install --frozen-lockfile"
 }
