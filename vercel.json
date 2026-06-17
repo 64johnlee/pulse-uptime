@@ -1,4 +1,8 @@
 {
-  "buildCommand": "pnpm install && pnpm --filter @pulse/web build",
-  "outputDirectory": "apps/web/.next/standalone"
+  "builds": [
+    {
+      "src": "apps/web/package.json",
+      "use": "@vercel/next"
+    }
+  ]
 }
