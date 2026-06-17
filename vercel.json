@@ -1,4 +1,4 @@
 {
-  "buildCommand": "cd apps/web && pnpm install --frozen-lockfile && pnpm build",
+  "buildCommand": "cd apps/web && pnpm install && pnpm build",
   "outputDirectory": "apps/web/.next/standalone"
 }
