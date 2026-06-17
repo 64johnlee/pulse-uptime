@@ -50,8 +50,12 @@ export function buildContentSecurityPolicy(
   nonce: string,
   isDev: boolean = process.env.NODE_ENV !== "production",
 ): string {
-  const scriptSrc = ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"];
-  if (isDev) scriptSrc.push("'unsafe-eval'");
+  const scriptSrc = [
+    "'self'",
+    `'nonce-${nonce}'`,
+    "'strict-dynamic'",
+    ...(isDev ? ["'unsafe-eval'"] : []),
+  ];
 
   return [
     "default-src 'self'",
