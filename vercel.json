@@ -1,14 +1,5 @@
 {
-  "builds": [
-    {
-      "src": "apps/web",
-      "use": "@vercel/next"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "apps/web/$1"
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm --filter=@pulse/web build",
+  "installCommand": "pnpm install --frozen-lockfile"
 }
