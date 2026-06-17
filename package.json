@@ -11,6 +11,7 @@
     "dev": "pnpm --filter @pulse/web dev",
     "dev:worker": "pnpm --filter @pulse/worker dev",
     "build": "pnpm -r build",
+    "build:render": "pnpm install --prod=false && pnpm --filter @pulse/web build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
