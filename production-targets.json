@@ -1,0 +1,14 @@
+{
+  "targets": [
+    {
+      "name": "pulse-web",
+      "url": "https://pulse-web-prod.vercel.app",
+      "expect": { "status": 200, "bodyIncludes": "Pulse" }
+    },
+    {
+      "name": "pulse",
+      "url": "https://getpulse-app.vercel.app",
+      "expect": { "status": 200, "bodyIncludes": "Pulse" }
+    }
+  ]
+}

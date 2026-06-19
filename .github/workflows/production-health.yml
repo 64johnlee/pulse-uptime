@@ -1,0 +1,30 @@
+name: Production Health Gate
+
+# Verifies production URLs actually return 200 — the automated gate that must be
+# green before any production incident may be closed. Runs after each deployment,
+# on a schedule (catches regressions / silent BLOCKED deploys), and on demand.
+
+on:
+  pull_request:
+    branches: [master] # produces the status that branch protection requires
+  deployment_status:
+  schedule:
+    - cron: "*/15 * * * *" # every 15 minutes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    name: health
+    # For deployment_status events, only act on the terminal "success" state.
+    if: ${{ github.event_name != 'deployment_status' || github.event.deployment_status.state == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Probe production URLs
+        run: node scripts/check-production-health.mjs --config production-targets.json
