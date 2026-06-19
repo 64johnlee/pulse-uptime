@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { db } from "@pulse/db";
-import path from "path";
+import { runMigrations } from "@pulse/db";
 
 /**
  * One-off migration endpoint for initializing the database.
@@ -15,27 +13,13 @@ export async function POST(request: Request) {
   const expectedToken = process.env.MIGRATION_TOKEN || "dev-token";
 
   if (authHeader !== `Bearer ${expectedToken}`) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     console.log("[migrate] Starting database migrations...");
 
-    // Get the migrations folder from the db package in node_modules
-    const migrationsFolder = path.join(
-      process.cwd(),
-      "node_modules",
-      "@pulse",
-      "db",
-      "drizzle"
-    );
-
-    await migrate(db as any, {
-      migrationsFolder,
-    });
+    await runMigrations();
 
     console.log("[migrate] ✓ Migrations complete");
 
@@ -51,7 +35,7 @@ export async function POST(request: Request) {
         status: "error",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

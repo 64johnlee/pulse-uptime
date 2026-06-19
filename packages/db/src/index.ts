@@ -8,6 +8,9 @@
 export { db, pool, schema } from "./client";
 export type { PulseDb } from "./client";
 
+// Migration runner (applies pending SQL migrations against the shared client).
+export { runMigrations } from "./migrator";
+
 // Typed auth repository (storage layer for accounts, users, sessions).
 export * as authRepo from "./repositories/auth";
 export type {
